@@ -12,7 +12,6 @@
 #include <opencv2/features2d.hpp>
 #include <opencv2/xfeatures2d.hpp>
 #include <opencv2/xfeatures2d/nonfree.hpp>
-
 #include "dataStructures.h"
 #include "matching2D.hpp"
 
@@ -25,7 +24,7 @@ int main(int argc, const char *argv[])
     /* INIT VARIABLES AND DATA STRUCTURES */
 
     // data location
-    string dataPath = "../";
+    string dataPath = "/home/santosh/SFND/Camera/mid_term_project/SFND_2D_Feature_Tracking/";
 
     // camera
     string imgBasePath = dataPath + "images/";
@@ -60,9 +59,23 @@ int main(int argc, const char *argv[])
         //// TASK MP.1 -> replace the following code with ring buffer of size dataBufferSize
 
         // push image into data frame buffer
-        DataFrame frame;
-        frame.cameraImg = imgGray;
-        dataBuffer.push_back(frame);
+        
+        // Solution: Untill the dataBuffer reaches its thrushold, images are pushed into it.
+        //           Then, the oldest image is removed before pushing a new one.
+        if (dataBuffer.size() < dataBufferSize)
+        {
+            // push image into data frame buffer
+            DataFrame frame;
+            frame.cameraImg = imgGray;
+            dataBuffer.push_back(frame);   
+        } else
+        {
+            // remove oldest image and push current image into data frame buffer
+            DataFrame frame;
+            frame.cameraImg = imgGray;
+            dataBuffer.erase(dataBuffer.begin());
+            dataBuffer.push_back(frame); 
+        }
 
         //// EOF STUDENT ASSIGNMENT
         cout << "#1 : LOAD IMAGE INTO BUFFER done" << endl;
@@ -71,7 +84,7 @@ int main(int argc, const char *argv[])
 
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
-        string detectorType = "SHITOMASI";
+        string detectorType = "AKAZE"; // options: "SHITOMASI", "HARRIS", "FAST", "BRISK", "ORB", "AKAZE", "SIFT"
 
         //// STUDENT ASSIGNMENT
         //// TASK MP.2 -> add the following keypoint detectors in file matching2D.cpp and enable string-based selection based on detectorType
@@ -81,9 +94,13 @@ int main(int argc, const char *argv[])
         {
             detKeypointsShiTomasi(keypoints, imgGray, false);
         }
+        else if (detectorType.compare("HARRIS") == 0)
+        {
+            detKeypointsHarris(keypoints, imgGray, false);
+        }
         else
         {
-            //...
+            detKeypointsModern(keypoints, img, detectorType, false);
         }
         //// EOF STUDENT ASSIGNMENT
 
@@ -93,11 +110,35 @@ int main(int argc, const char *argv[])
         // only keep keypoints on the preceding vehicle
         bool bFocusOnVehicle = true;
         cv::Rect vehicleRect(535, 180, 180, 150);
+        cout << "no of keypoints before removal: " << keypoints.size() << endl;
+        
         if (bFocusOnVehicle)
-        {
-            // ...
-        }
+        {         
+            double t = (double)cv::getTickCount();
+            vector<cv::KeyPoint> inliers; // vector to store inliers of the rectangle
 
+            for(auto it = keypoints.begin(); it != keypoints.end(); ++it)
+            {
+                if(vehicleRect.contains(it->pt) )
+                {
+                    /*
+                    If a keypoint lies inside the rectangle it is 
+                    added to the inliers vector
+                    */
+                    cv::KeyPoint newKeyPoint;
+                    newKeyPoint.pt = cv::Point2f((*it).pt.x, (*it).pt.y);
+                    newKeyPoint.size = 1;
+                    inliers.push_back(newKeyPoint);
+                }
+            }
+
+            keypoints = inliers; // keypoints vector is assigned inliers
+        
+            t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+            cout << "keypoints removal took "  << 1000 * t / 1.0 << " ms" << endl;
+            cout << "keypoints after removal = " << keypoints.size() << endl;
+        }
+        
         //// EOF STUDENT ASSIGNMENT
 
         // optional : limit number of keypoints (helpful for debugging and learning)
@@ -106,7 +147,7 @@ int main(int argc, const char *argv[])
         {
             int maxKeypoints = 50;
 
-            if (detectorType.compare("SHITOMASI") == 0)
+            if (detectorType.compare("HARRIS") == 0)
             { // there is no response info, so keep the first 50 as they are sorted in descending quality order
                 keypoints.erase(keypoints.begin() + maxKeypoints, keypoints.end());
             }
@@ -125,7 +166,7 @@ int main(int argc, const char *argv[])
         //// -> BRIEF, ORB, FREAK, AKAZE, SIFT
 
         cv::Mat descriptors;
-        string descriptorType = "BRISK"; // BRIEF, ORB, FREAK, AKAZE, SIFT
+        string descriptorType = "AKAZE"; // BRIEF, ORB, FREAK, BRISK, AKAZE, SIFT 
         descKeypoints((dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->cameraImg, descriptors, descriptorType);
         //// EOF STUDENT ASSIGNMENT
 
@@ -142,7 +183,7 @@ int main(int argc, const char *argv[])
             vector<cv::DMatch> matches;
             string matcherType = "MAT_BF";        // MAT_BF, MAT_FLANN
             string descriptorType = "DES_BINARY"; // DES_BINARY, DES_HOG
-            string selectorType = "SEL_NN";       // SEL_NN, SEL_KNN
+            string selectorType = "SEL_KNN";       // SEL_NN, SEL_KNN
 
             //// STUDENT ASSIGNMENT
             //// TASK MP.5 -> add FLANN matching in file matching2D.cpp
