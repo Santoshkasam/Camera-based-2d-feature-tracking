@@ -84,7 +84,7 @@ int main(int argc, const char *argv[])
 
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
-        string detectorType = "AKAZE"; // options: "SHITOMASI", "HARRIS", "FAST", "BRISK", "ORB", "AKAZE", "SIFT"
+        string detectorType = "SIFT"; // options: "SHITOMASI", "HARRIS", "FAST", "BRISK", "ORB", "AKAZE", "SIFT"
 
         //// STUDENT ASSIGNMENT
         //// TASK MP.2 -> add the following keypoint detectors in file matching2D.cpp and enable string-based selection based on detectorType
@@ -92,15 +92,15 @@ int main(int argc, const char *argv[])
 
         if (detectorType.compare("SHITOMASI") == 0)
         {
-            detKeypointsShiTomasi(keypoints, imgGray, false);
+            detKeypointsShiTomasi(keypoints, imgGray, true);
         }
         else if (detectorType.compare("HARRIS") == 0)
         {
-            detKeypointsHarris(keypoints, imgGray, false);
+            detKeypointsHarris(keypoints, imgGray, true);
         }
         else
         {
-            detKeypointsModern(keypoints, img, detectorType, false);
+            detKeypointsModern(keypoints, img, detectorType, true);
         }
         //// EOF STUDENT ASSIGNMENT
 
@@ -117,18 +117,15 @@ int main(int argc, const char *argv[])
             double t = (double)cv::getTickCount();
             vector<cv::KeyPoint> inliers; // vector to store inliers of the rectangle
 
-            for(auto it = keypoints.begin(); it != keypoints.end(); ++it)
+            for(int i = 0; i < keypoints.size(); i++)
             {
-                if(vehicleRect.contains(it->pt) )
+                if(vehicleRect.contains(keypoints[i].pt) )
                 {
                     /*
                     If a keypoint lies inside the rectangle it is 
                     added to the inliers vector
                     */
-                    cv::KeyPoint newKeyPoint;
-                    newKeyPoint.pt = cv::Point2f((*it).pt.x, (*it).pt.y);
-                    newKeyPoint.size = 1;
-                    inliers.push_back(newKeyPoint);
+                    inliers.push_back(keypoints[i]);
                 }
             }
 
@@ -136,7 +133,7 @@ int main(int argc, const char *argv[])
         
             t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
             cout << "keypoints removal took "  << 1000 * t / 1.0 << " ms" << endl;
-            cout << "keypoints after removal = " << keypoints.size() << endl;
+            cout << "keypoints on Focus vehicle = " << keypoints.size() << endl;
         }
         
         //// EOF STUDENT ASSIGNMENT
@@ -166,7 +163,7 @@ int main(int argc, const char *argv[])
         //// -> BRIEF, ORB, FREAK, AKAZE, SIFT
 
         cv::Mat descriptors;
-        string descriptorType = "AKAZE"; // BRIEF, ORB, FREAK, BRISK, AKAZE, SIFT 
+        string descriptorType = "SIFT"; // BRIEF, ORB, FREAK, BRISK, AKAZE, SIFT 
         descKeypoints((dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->cameraImg, descriptors, descriptorType);
         //// EOF STUDENT ASSIGNMENT
 
@@ -181,8 +178,8 @@ int main(int argc, const char *argv[])
             /* MATCH KEYPOINT DESCRIPTORS */
 
             vector<cv::DMatch> matches;
-            string matcherType = "MAT_BF";        // MAT_BF, MAT_FLANN
-            string descriptorType = "DES_BINARY"; // DES_BINARY, DES_HOG
+            string matcherType = "MAT_FLANN";        // MAT_BF, MAT_FLANN (SIFT is compatible only with FLANN)
+            string descriptorType = "DES_HOG"; // DES_BINARY, DES_HOG (SIFT is a HOG descriptor, rest are BINARY)
             string selectorType = "SEL_KNN";       // SEL_NN, SEL_KNN
 
             //// STUDENT ASSIGNMENT
